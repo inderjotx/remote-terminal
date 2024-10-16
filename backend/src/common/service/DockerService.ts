@@ -1,13 +1,9 @@
 // dockerService.js
 
 import Docker from 'dockerode';
-import { promisify } from 'util';
-import stream from 'stream';
 import { uniqueName } from '../utils/uniqueNameGenerator';
 
 const docker = new Docker();
-const streamPipeline = promisify(stream.pipeline);
-const CONTAINER_PORT = 9000;
 
 export class DockerService {
     async createContainer(): Promise<string> {
@@ -20,9 +16,18 @@ export class DockerService {
                 Tty: true,
                 OpenStdin: true,
                 Labels: {
+
                     "traefik.enable": "true",
                     [`traefik.http.routers.${containerName}.rule`]: `Host(\`${containerName}.localhost\`)`,
-                    [`traefik.http.services.${containerName}.loadbalancer.server.port`]: "9000"
+                    [`traefik.http.routers.${containerName}.service`]: `${containerName}`,
+                    [`traefik.http.services.${containerName}.loadbalancer.server.port`]: "9000",
+
+
+
+                    [`traefik.http.routers.${containerName}-frontend.rule`]: `Host(\`frontend-${containerName}.localhost\`)`,
+                    [`traefik.http.routers.${containerName}-frontend.service`]: `${containerName}-frontend`,
+                    [`traefik.http.services.${containerName}-frontend.loadbalancer.server.port`]: "3000",
+
                 },
                 NetworkingConfig: {
                     EndpointsConfig: {

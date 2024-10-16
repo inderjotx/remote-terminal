@@ -1,15 +1,23 @@
 "use client";
 
 import { useContainer } from "@/providers/ContainerProvider";
-import { useEffect, useState, useRef } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { useEffect, useRef, useState } from "react";
+import { BrowserSimulator } from "@/components/ui/browser-tab";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable";
+
+// import { Input } from "@/components/ui/input";
 import { execContainer } from "@/actions/ExecContainer";
 import { socketManager } from "@/lib/socket/socket";
 import { Socket } from "socket.io-client";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
+import "@xterm/xterm/css/xterm.css";
+import { Button } from "@/components/ui/button";
 
 export function ExecuteCommands() {
   const { containerName } = useContainer();
@@ -17,7 +25,7 @@ export function ExecuteCommands() {
   const socketRef = useRef<Socket | null>(null);
   const xtermRef = useRef<Terminal | null>(null);
 
-  const [retry, setRetry] = useState<boolean>(false);
+  const [reload, setReload] = useState(false);
 
   useEffect(() => {
     if (containerName.trim() === "") {
@@ -30,7 +38,12 @@ export function ExecuteCommands() {
       theme: {
         background: "#1e1e1e",
         foreground: "#ffffff",
+        cursor: "#ffffff",
       },
+      fontFamily: '"Cascadia Code", Menlo, monospace',
+      fontSize: 14,
+      lineHeight: 1.2,
+      scrollback: 1000,
     });
 
     const fitAddon = new FitAddon();
@@ -52,6 +65,7 @@ export function ExecuteCommands() {
 
     socket.on("output", (data) => {
       term.write(data);
+      term.scrollToBottom();
     });
 
     const handleResize = () => {
@@ -64,6 +78,7 @@ export function ExecuteCommands() {
 
     window.addEventListener("resize", handleResize);
     handleResize();
+
     // Cleanup
     return () => {
       term.dispose();
@@ -83,19 +98,35 @@ export function ExecuteCommands() {
     console.log(res);
   };
 
+  if (containerName.trim() === "") {
+    return null;
+  }
+
   return (
     <div>
-      <form action={handleSubmit}>
-        <div className="flex gap-2">
-          <Input type="text" name="command" placeholder="Enter command" />
-          <Input type="hidden" name="containerName" value={containerName} />
-          <Button type="submit">Execute</Button>
-        </div>
-      </form>
-      <Button onClick={() => setRetry(!retry)}>Retry</Button>
-      <div className="h-[600px] w-full bg-black p-2">
-        <div ref={terminalRef} className="h-full" />
-      </div>
+      <Button onClick={() => setReload(!reload)}>Reload</Button>
+      <ResizablePanelGroup
+        direction="horizontal"
+        className="min-h-screen w-full"
+      >
+        <ResizablePanel defaultValue={50}>
+          <pre>{containerName}</pre>
+        </ResizablePanel>
+        <ResizableHandle withHandle />
+        <ResizablePanel defaultValue={50}>
+          <ResizablePanelGroup direction="vertical">
+            <ResizablePanel defaultValue={80} className="relative">
+              <BrowserSimulator
+                url={`http://frontend-${containerName}.localhost`}
+              />
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultValue={20} className="relative">
+              <div ref={terminalRef} />
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </ResizablePanel>
+      </ResizablePanelGroup>
     </div>
   );
 }
